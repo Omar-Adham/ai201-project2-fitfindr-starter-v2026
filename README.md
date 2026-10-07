@@ -41,6 +41,13 @@
 
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
 
+FitFindr is a command-line thrift styling agent: a shopper can ask for something
+like `vintage graphic tee under $30`, optionally specifying a size. It searches
+40 mock second-hand listings, chooses the highest-ranked match, and asks Gemini
+for outfit suggestions using the example wardrobe, or general styling advice
+when the wardrobe is empty. It then writes a short fit-card caption about the
+find, including its price and platform. If nothing matches, it stops before
+either model tool and suggests changing the keywords, size, or price ceiling.
 
 
 ---
@@ -165,8 +172,10 @@ size, or the keywords — and return the session immediately, leaving
 every run or criterion 2 can't hit 5 of 5, and a model call here would be a third
 source of variance in a loop that already has two.
 
-- `max_price` — `under \$?(\d+)` or `\$(\d+)`, cast to `float`
-- `size` — `\bsize\s+([a-z0-9/.]+)\b`, or a bare `W\d+` / `US \d+(\.\d+)?`
+- `max_price` — an amount after `under` (optional `$`) or after `$`, including
+  decimals, cast to `float`
+- `size` — a value after `size`, or a bare waist/shoe size such as `W30` or
+  `US 8`; `size 8`, `size US 8`, and `US8` normalize to `US 8`
 - `description` — the query with those matched spans removed and whitespace normalized;
   `search_listings` drops stopwords when scoring it
 
@@ -328,9 +337,11 @@ run 3: Finally tracked down these vintage Levi's 501 jeans on Depop and they fit
        absolute dream for thirty-eight bucks. [...]
 ```
 
-Different, but **runs 1 and 2 open with the same sentence**, and run 3 writes the
-price as "thirty-eight bucks" rather than a numeral. Both are conditions
-criterion 4 asks for, so that row is already at risk before the real eval runs.
+Different, but **runs 1 and 2 have nearly identical openings**, differing only
+in price formatting (`$38.0` versus `$38.00`), and run 3 writes the price as
+"thirty-eight bucks" rather than a numeral. The latter misses criterion 4's
+numeric-price condition; the first two are technically distinct openings under
+the existing criterion but show limited variation.
 Noting it here rather than changing the target.
 
 ---
@@ -346,15 +357,32 @@ Noting it here rather than changing the target.
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I gave Codex the milestone instructions and asked it to
+  read the project, review my work through milestone 4, and continue milestone 5.
+- *What came back:* It found an existing uncommitted planning loop and a parsing
+  bug: `size US 8` captured `US` rather than the complete shoe size. It also
+  added checks of the actual arguments received by both model tools.
+- *What I changed:* With Codex's help, I updated `agent.py::parse_query` to
+  capture and normalize the shoe size, preserved the loop's session-based
+  handoff, and added `test_agent.py`. The five tests cover state handoff,
+  early stopping, empty wardrobes, shoe sizes, and price advice.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked whether everything through milestone 5 was done,
+  then told Codex to finish the remaining verification and commit it.
+- *What came back:* It distinguished the passing offline tests from the still
+  pending real model run. After I authorized completion, the live Gemini run
+  returned a fit card for the $18 butterfly tee; the impossible query stopped
+  without calling either model tool.
+- *What I changed:* With Codex's help, I replaced the pending-run note in this
+  README with actual output and saved both full sessions in
+  `results/milestone5_sessions.txt`. The evidence labels the cached repeat
+  separately from the live run, and milestone 5 was committed as `d902aa7`.
+
+Submission repository: [Omar-Adham/ai201-project2-fitfindr-starter-v2026](https://github.com/Omar-Adham/ai201-project2-fitfindr-starter-v2026).
+Keep this same repository for the next unit. See [SUBMISSION.md](SUBMISSION.md)
+for the checklist and URL to paste into the course submission form.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -364,6 +392,9 @@ Noting it here rather than changing the target.
 ---
 
 ## Run Log — Before
+
+The sections below are reserved for unit 4 and are intentionally unfinished
+in this unit 3 submission.
 
 <!-- Five criteria, five tries each, in this exact format.
 
