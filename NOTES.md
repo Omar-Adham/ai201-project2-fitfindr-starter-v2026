@@ -46,17 +46,20 @@ does not exist in the data.
 
 ## Expected result for the demo query
 
-`'vintage graphic tee under $30'` should return exactly three listings. All
-three carry both `vintage` and `graphic tee` tags and all are under $30:
+`'vintage graphic tee under $30'` returns **10** results, not 3 — scoring is
+keyword *overlap*, so the 29 listings tagged `vintage` all score at least 1 and
+survive the drop-zero step. What matters is the **ranking**, because the loop
+takes `search_results[0]`:
 
-| id | title | price |
-|---|---|---|
-| `lst_002` | Y2K Baby Tee — Butterfly Print | 18.0 |
-| `lst_006` | Graphic Tee — 2003 Tour Bootleg Style | 24.0 |
-| `lst_033` | Vintage Band Tee — Faded Grey | 19.0 |
+| rank | score | id | price | title |
+|---|---|---|---|---|
+| 1 | 3 | `lst_002` | 18.0 | Y2K Baby Tee — Butterfly Print |
+| 2 | 3 | `lst_033` | 19.0 | Vintage Band Tee — Faded Grey |
+| 3 | 3 | `lst_006` | 24.0 | Graphic Tee — 2003 Tour Bootleg Style |
+| 4 | 2 | `lst_015` | 26.0 | Vintage Graphic Hoodie — Faded Black |
 
-If the tool returns more or fewer than these three, the filter is wrong — not
-the data.
+The three tees take the top three on a score of 3/3. If a tee isn't at rank 1,
+the scoring is wrong — not the data.
 
 ## Wardrobe shape (what `suggest_outfit` receives)
 

@@ -59,24 +59,83 @@
 
 ### `search_listings`
 
-- **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Filters the 40 listings in `data/listings.json` down to the
+  ones that fit the shopper's price ceiling and size, ranks the survivors by how
+  many of their keywords overlap the description, and returns the best matches.
+  It is the only one of the three that never calls the model.
+- **Inputs:**
+  - `description` (`str`, required) — keywords, e.g. `"vintage graphic tee"`
+  - `size` (`str | None`, default `None`) — e.g. `"M"`, `"W30"`, `"US 8"`; `None` skips size filtering
+  - `max_price` (`float | None`, default `None`) — inclusive ceiling; `None` skips price filtering
+- **Returns:** A `list[dict]` of whole listing dicts, highest score first, ties
+  broken by lower price, capped at `config.SEARCH_RESULT_LIMIT` (10). Each dict
+  carries all eleven listing fields: `id` (str), `title` (str), `description`
+  (str), `category` (str), `style_tags` (list[str]), `size` (str), `condition`
+  (str), `price` (float), `colors` (list[str]), `brand` (**str or None**), and
+  `platform` (str). The caller gets the full dict, not a summary, so
+  `suggest_outfit` and `create_fit_card` can read any field they need.
+- **When it has nothing:** The empty list `[]`. Never `None`, never an
+  exception, never a string. The loop branches on `if not results`.
+
+**How a size matches** (decided here because the docstring leaves it to the spec,
+and because `"s" in "us 9"` and `"l" in "xl"` are both true):
+
+1. Lowercase the size and delete any parenthetical, so `XL (oversized)` → `xl`.
+2. Sort it into one of four families — `shoe` (starts `us `), `waist` (matches
+   `^w\d+`), `one-size` (contains `one size`), or `letter` (everything else).
+3. A listing matches only inside its own family, with one exception: a
+   **one-size listing also matches any letter query**, because it genuinely fits.
+4. Within `letter` and `waist`, split the size on `/` and whitespace into tokens
+   and match on whole-token equality — so `M` matches `S/M` and `M/L`, `W30`
+   matches `W30 L30`, and `L` does **not** match `XL`.
+5. Within `shoe`, compare the numbers — `US 8` does not match `US 8.5`.
+
+Checked against the data: `M` → 18 listings, `L` → 12, `W30` → 2, `US 8` → 1.
+
+**How keywords score:** lowercase the description, keep word characters, drop
+tokens under 3 characters and a small stopword set (`the`, `a`, `an`, `in`,
+`for`, `with`, `and`, `under`, `size`, `looking`). Score = how many surviving
+keywords appear anywhere in the listing's **title + `style_tags` + `category`**.
+Anything scoring zero is dropped. `description` is deliberately **not** searched:
+including it makes `lst_011` and `lst_017` match "tee" when neither is a tee.
+
+If the description leaves **no** keywords after stopword removal — `"size M under
+$30"` parses to an empty description — every listing scores zero and the tool
+would return `[]`, which reads to the loop as "nothing matches" when the price
+and size filters actually had plenty. So: when there are no keywords, skip
+scoring and return everything that survived the filters, cheapest first.
 
 ### `suggest_outfit`
 
-- **What it does:**
+- **What it does:** Asks the model for one or two concrete outfits that pair the
+  thrifted item with pieces the user already owns, naming those pieces.
 - **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+  - `new_item` (`dict`) — one listing dict, exactly as `search_listings` returns it
+  - `wardrobe` (`dict`) — has an `"items"` key holding a `list[dict]`; each item
+    has `id` (str), `name` (str), `category` (str), `colors` (list[str]),
+    `style_tags` (list[str]), `notes` (**str or None**)
+- **Returns:** A non-empty `str` — one or two outfit suggestions in prose, each
+  naming the wardrobe pieces it uses by their `name` field, so that
+  `create_fit_card` has something specific to write about.
+- **When it has nothing:** When `wardrobe["items"]` is `[]`, it returns general
+  styling advice for the item as a non-empty `str` — same type, different
+  content. It does not raise and does not return `""`, because the loop does not
+  branch here; it carries on to `create_fit_card` either way.
 
 ### `create_fit_card`
 
-- **What it does:**
+- **What it does:** Writes a short caption someone would actually post about the
+  find, in the voice of a person rather than a product listing.
 - **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+  - `outfit` (`str`) — the string `suggest_outfit` returned
+  - `new_item` (`dict`) — the same listing dict that went into `suggest_outfit`
+- **Returns:** A `str` of two to four sentences that mentions the item's `title`,
+  its `price`, and its `platform` once each, and that differs between runs
+  (`TEMPERATURE` is 0.9 and the eval harness disables the cache).
+- **When it has nothing:** When `outfit` is empty or whitespace-only, it returns
+  the fixed string `"No outfit to write about — suggest_outfit returned
+  nothing."` rather than raising or calling the model. A `str` either way, so the
+  caller never type-checks the result.
 
 ---
 
@@ -93,13 +152,35 @@
      The grader checks your code against what you claim here, so the file and
      function have to be real. -->
 
-**Branch rule:**
+**Branch rule:** If `search_listings` returns an empty list, write a message into
+`session["error"]` naming which constraint to loosen — the price ceiling, the
+size, or the keywords — and return the session immediately, leaving
+`selected_item`, `outfit_suggestion` and `fit_card` as `None`. Otherwise take
+`search_results[0]`, put it in `session["selected_item"]`, and go on to
+`suggest_outfit`.
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** Regex, not the model — the parse has to be the same
+every run or criterion 2 can't hit 5 of 5, and a model call here would be a third
+source of variance in a loop that already has two.
 
-**What moves through the session:** <!-- which fields, in what order -->
+- `max_price` — `under \$?(\d+)` or `\$(\d+)`, cast to `float`
+- `size` — `\bsize\s+([a-z0-9/.]+)\b`, or a bare `W\d+` / `US \d+(\.\d+)?`
+- `description` — the query with those matched spans removed, then stopwords dropped
+
+**What moves through the session:** In this order —
+
+1. `query` — the raw string the user typed
+2. `parsed` — `{"description": str, "size": str | None, "max_price": float | None}`
+3. `search_results` — the `list[dict]` from `search_listings` (possibly `[]`)
+4. **branch** — `[]` sets `error` and returns; anything else continues
+5. `selected_item` — `search_results[0]`, the whole listing dict
+6. `outfit_suggestion` — the `str` from `suggest_outfit(selected_item, wardrobe)`
+7. `fit_card` — the `str` from `create_fit_card(outfit_suggestion, selected_item)`
+
+`selected_item` is the same dict object that `search_listings` returned and the
+same one both model tools receive — that identity is what criterion 3 checks.
 
 ---
 
