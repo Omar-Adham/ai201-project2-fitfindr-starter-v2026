@@ -202,18 +202,83 @@ $ python app.py ask '...'
 
 ```
 $ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
+[{'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute
+early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits
+like a small.', 'category': 'tops', 'style_tags': ['y2k', 'vintage', 'graphic tee',
+'cottagecore'], 'size': 'S/M', 'condition': 'excellent', 'price': 18.0, 'colors': ['white',
+'pink', 'purple'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_033', 'title': 'Vintage
+Band Tee — Faded Grey', ...]
 
+4 results, whole listing dicts, best match first: lst_002 ($18), lst_033 ($19),
+lst_006 ($24), lst_015 ($26). Every price is at or under the $30 ceiling.
 ```
 
 ```
-$ python -c "from tools import suggest_outfit; ..."
+$ python -c "from tools import search_listings; print(search_listings('designer ballgown', size='XXS', max_price=5))"
+[]
+```
+The empty case, as specced — an empty list, not `None` and not a crash. This is
+what the loop branches on.
 
 ```
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
+Here is an outfit using the Vintage Levi's 501 Jeans:
+
+**Outfit 1: Classic Streetwear**
+*   Vintage Levi's 501 Jeans — Medium Wash
+*   White ribbed tank top
+*   Vintage black denim jacket
+*   Chunky white sneakers
+*   Black crossbody bag
+```
+Every piece after the jeans is a real wardrobe entry, named exactly as
+`wardrobe_schema.json` writes it — it isn't inventing a closet.
 
 ```
-$ python -c "from tools import create_fit_card; ..."
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_empty_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_empty_wardrobe()))"
+Vintage Levi's 501s in a medium wash are the ultimate canvas for a timeless, effortless
+wardrobe. With a classic straight-leg cut and rigid denim structure, these bottoms
+naturally call for balance—think fitted baby tees, cropped cardigans, or a tucked-in
+oversized button-down to define the waist. [...]
+```
+The empty-wardrobe case: general styling advice, still a non-empty string, and it
+never claims the user owns anything. That's criterion 5's condition.
 
 ```
+$ python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
+Finally found the holy grail of slouchy denim that actually holds you in at the waist.
+Scored these vintage Levi's 501 jeans on depop for just $38.0 and they are already my new
+absolute favorite. Threw them on with crisp white sneakers for that effortlessly cool,
+lived-in 90s streetwear vibe.
+```
+Three sentences, names the item, the price and the platform once each.
+
+```
+$ python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(repr(create_fit_card('   ', load_listings()[0])))"
+'No outfit to write about — suggest_outfit returned nothing.'
+```
+The empty case: the fixed string from the spec, with no model call made.
+
+**Three runs on the same item**
+
+Run three times with the starter's settings untouched and all three are
+word-for-word identical — `CACHE_ENABLED` is `True`, so runs 2 and 3 were served
+the answer run 1 had already paid for. Setting `config.CACHE_ENABLED = False`
+gives three different cards at `TEMPERATURE = 0.9`:
+
+```
+run 1: Scored these vintage Levi's 501 jeans on Depop for just $38.0 and they fit like an
+       absolute dream. [...] Perfect downtown uniform unlocked.
+run 2: Scored these vintage Levi's 501 jeans on Depop for just $38.00 and they fit like an
+       absolute dream. [...] It's the ultimate effortless streetwear uniform [...]
+run 3: Finally tracked down these vintage Levi's 501 jeans on Depop and they fit like an
+       absolute dream for thirty-eight bucks. [...]
+```
+
+Different, but **runs 1 and 2 open with the same sentence**, and run 3 writes the
+price as "thirty-eight bucks" rather than a numeral. Both are conditions
+criterion 4 asks for, so that row is already at risk before the real eval runs.
+Noting it here rather than changing the target.
 
 ---
 
