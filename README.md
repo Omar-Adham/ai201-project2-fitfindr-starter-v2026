@@ -13,8 +13,8 @@
 > python app.py ask 'vintage graphic tee under $30'
 > ```
 >
-> All three tools are stubs, so that last command will do nothing useful yet.
-> That's the starting position.
+> The three tools and planning loop are implemented. Matching queries need
+> access to the configured model; an impossible query stops without a model call.
 >
 > **The rest of this file is your submission.** Fill it in as you go.
 
@@ -167,7 +167,8 @@ source of variance in a loop that already has two.
 
 - `max_price` — `under \$?(\d+)` or `\$(\d+)`, cast to `float`
 - `size` — `\bsize\s+([a-z0-9/.]+)\b`, or a bare `W\d+` / `US \d+(\.\d+)?`
-- `description` — the query with those matched spans removed, then stopwords dropped
+- `description` — the query with those matched spans removed and whitespace normalized;
+  `search_listings` drops stopwords when scoring it
 
 **What moves through the session:** In this order —
 
@@ -193,10 +194,62 @@ same one both model tools receive — that identity is what criterion 3 checks.
 
 **One full query**
 
-```
-$ python app.py ask '...'
+Milestone 5 verification (2026-10-07): the live run completed all three tools
+and returned a fit card. The initial run made two model calls (626 prompt and
+196 output tokens). The repeat below reused those real responses from cache
+while checking the actual inputs received by both model tools.
 
 ```
+$ python app.py ask 'vintage graphic tee under $30'
+Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   Here are two complete outfits using the new Y2K Baby Tee — Butterfly Print and pieces from your wardrobe:
+
+**Outfit 1: Y2K Streetwear**
+*   Y2K Baby Tee — Butterfly Print
+*   Baggy straight-leg jeans, dark wash
+*   Chunky white sneakers
+*   Black crossbody bag
+
+**Outfit 2: Casual Layered Grunge**
+*   Y2K Baby Tee — Butterfly Print
+*   Wide-leg khaki trousers
+*   Black cropped zip hoodie
+*   Black combat boots
+
+  Fit card: Scored this little butterfly print baby tee on Depop for just $18.0 and I'm instantly transported back to 2003. It's giving major early-2000s mall rat energy, especially paired with baggy dark-wash denim and chunky kicks. Can't wait to grunge it down with combat boots and an oversized zip-up for my next coffee run.
+
+0 model calls this session, 2 served from cache
+```
+
+The impossible query completed using the real search tool:
+
+```
+$ python app.py ask 'designer ballgown size XXS under $5'
+  Nothing matched 'designer ballgown' in size XXS under $5. You could try different words — nothing in the catalogue matches 'designer ballgown'.
+
+0 model calls this session
+```
+
+State and branch checks run without network access:
+
+```
+$ python -m unittest test_agent -v
+Ran 5 tests
+OK
+```
+
+These checks use real search results and mock the two model tools. They verify
+the selected item is already in the session when each tool receives it, that
+the saved outfit reaches the card tool, that an empty wardrobe proceeds, and
+that the impossible query skips both model tools in five tries. They also
+check shoe-size parsing and actionable price advice. They do not evaluate
+generated caption quality or replace the later five-trial model evaluation.
+
+The full happy-path session (real model responses, reused from cache) and
+empty-search session are in [results/milestone5_sessions.txt](results/milestone5_sessions.txt).
+Both model tools received the same selected item object. On the empty branch,
+`selected_item`, `outfit_suggestion`, and `fit_card` remained `None`.
 
 **The three tools, tested one at a time**
 

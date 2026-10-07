@@ -1,0 +1,561 @@
+Milestone 5 verification - 2026-10-07
+Real tools; happy-path model responses reused from the successful live Gemini run.
+Initial live run: 2 model calls, 626 prompt + 196 output tokens.
+selected_item is suggest_outfit input: True
+selected_item is create_fit_card input: True
+outfit_suggestion equals create_fit_card outfit input: True
+Happy-path full session:
+{
+  "query": "vintage graphic tee under $30",
+  "parsed": {
+    "description": "vintage graphic tee",
+    "size": null,
+    "max_price": 30.0
+  },
+  "search_results": [
+    {
+      "id": "lst_002",
+      "title": "Y2K Baby Tee — Butterfly Print",
+      "description": "Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.",
+      "category": "tops",
+      "style_tags": [
+        "y2k",
+        "vintage",
+        "graphic tee",
+        "cottagecore"
+      ],
+      "size": "S/M",
+      "condition": "excellent",
+      "price": 18.0,
+      "colors": [
+        "white",
+        "pink",
+        "purple"
+      ],
+      "brand": null,
+      "platform": "depop"
+    },
+    {
+      "id": "lst_033",
+      "title": "Vintage Band Tee — Faded Grey",
+      "description": "Faded grey band-style tee with distressed graphic. Crew neck. Fits boxy. Well-loved but no holes or major damage.",
+      "category": "tops",
+      "style_tags": [
+        "vintage",
+        "grunge",
+        "band tee",
+        "graphic tee",
+        "streetwear"
+      ],
+      "size": "L",
+      "condition": "fair",
+      "price": 19.0,
+      "colors": [
+        "grey",
+        "charcoal"
+      ],
+      "brand": null,
+      "platform": "depop"
+    },
+    {
+      "id": "lst_006",
+      "title": "Graphic Tee — 2003 Tour Bootleg Style",
+      "description": "Vintage-style bootleg tee with faded graphic. Slightly boxy fit. 100% cotton, soft and worn-in.",
+      "category": "tops",
+      "style_tags": [
+        "graphic tee",
+        "vintage",
+        "grunge",
+        "streetwear",
+        "band tee"
+      ],
+      "size": "L",
+      "condition": "good",
+      "price": 24.0,
+      "colors": [
+        "black"
+      ],
+      "brand": null,
+      "platform": "depop"
+    },
+    {
+      "id": "lst_015",
+      "title": "Vintage Graphic Hoodie — Faded Black",
+      "description": "Faded black pullover hoodie with barely-visible vintage graphic on the chest. Cozy interior. Some pilling but adds to the worn-in look.",
+      "category": "tops",
+      "style_tags": [
+        "vintage",
+        "grunge",
+        "graphic",
+        "streetwear"
+      ],
+      "size": "L",
+      "condition": "fair",
+      "price": 26.0,
+      "colors": [
+        "black",
+        "charcoal"
+      ],
+      "brand": null,
+      "platform": "depop"
+    },
+    {
+      "id": "lst_014",
+      "title": "Leather Belt — Brown, Braided",
+      "description": "Genuine leather braided belt. Adjustable, multiple holes. Classic Western buckle. Can be dressed up or down.",
+      "category": "accessories",
+      "style_tags": [
+        "vintage",
+        "western",
+        "classic",
+        "earth tones"
+      ],
+      "size": "One Size (adjustable)",
+      "condition": "excellent",
+      "price": 12.0,
+      "colors": [
+        "brown"
+      ],
+      "brand": null,
+      "platform": "thredUp"
+    },
+    {
+      "id": "lst_034",
+      "title": "Bucket Hat — Reversible, Brown Plaid",
+      "description": "Reversible bucket hat — plaid on one side, solid tan on the other. Unstructured brim. One size fits most.",
+      "category": "accessories",
+      "style_tags": [
+        "90s",
+        "streetwear",
+        "vintage",
+        "accessories"
+      ],
+      "size": "One Size",
+      "condition": "excellent",
+      "price": 14.0,
+      "colors": [
+        "brown",
+        "tan",
+        "plaid"
+      ],
+      "brand": null,
+      "platform": "thredUp"
+    },
+    {
+      "id": "lst_020",
+      "title": "Henley Long Sleeve — Washed Burgundy",
+      "description": "Soft washed henley in a rich burgundy. Three-button placket. Slightly shrunken/cropped fit. 100% cotton.",
+      "category": "tops",
+      "style_tags": [
+        "vintage",
+        "basics",
+        "earth tones",
+        "classic"
+      ],
+      "size": "M",
+      "condition": "excellent",
+      "price": 16.0,
+      "colors": [
+        "burgundy",
+        "wine"
+      ],
+      "brand": null,
+      "platform": "thredUp"
+    },
+    {
+      "id": "lst_024",
+      "title": "Vintage Polo Shirt — Forest Green",
+      "description": "Classic polo in forest green. Short sleeve, ribbed collar. Slightly boxy. The kind of piece that goes with everything.",
+      "category": "tops",
+      "style_tags": [
+        "vintage",
+        "preppy",
+        "classic",
+        "earth tones"
+      ],
+      "size": "M",
+      "condition": "good",
+      "price": 18.0,
+      "colors": [
+        "green",
+        "forest green"
+      ],
+      "brand": "Ralph Lauren",
+      "platform": "thredUp"
+    },
+    {
+      "id": "lst_012",
+      "title": "Oversized Crewneck Sweatshirt — Vintage Navy",
+      "description": "Perfectly faded navy crewneck. Genuinely vintage — not manufactured distressed. Ribbed cuffs and hem. No graphics, clean.",
+      "category": "tops",
+      "style_tags": [
+        "vintage",
+        "basics",
+        "oversized",
+        "classic"
+      ],
+      "size": "XL (fits oversized)",
+      "condition": "good",
+      "price": 20.0,
+      "colors": [
+        "navy"
+      ],
+      "brand": null,
+      "platform": "thredUp"
+    },
+    {
+      "id": "lst_027",
+      "title": "Oversized College Crewneck — Faded Red",
+      "description": "Classic college-style crewneck in a beautifully faded red. No school name — just a plain athletic crewneck. Roomy fit.",
+      "category": "tops",
+      "style_tags": [
+        "vintage",
+        "athletic",
+        "oversized",
+        "classic"
+      ],
+      "size": "XL",
+      "condition": "good",
+      "price": 21.0,
+      "colors": [
+        "red",
+        "faded red"
+      ],
+      "brand": null,
+      "platform": "thredUp"
+    }
+  ],
+  "selected_item": {
+    "id": "lst_002",
+    "title": "Y2K Baby Tee — Butterfly Print",
+    "description": "Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.",
+    "category": "tops",
+    "style_tags": [
+      "y2k",
+      "vintage",
+      "graphic tee",
+      "cottagecore"
+    ],
+    "size": "S/M",
+    "condition": "excellent",
+    "price": 18.0,
+    "colors": [
+      "white",
+      "pink",
+      "purple"
+    ],
+    "brand": null,
+    "platform": "depop"
+  },
+  "wardrobe": {
+    "items": [
+      {
+        "id": "w_001",
+        "name": "Baggy straight-leg jeans, dark wash",
+        "category": "bottoms",
+        "colors": [
+          "dark blue",
+          "indigo"
+        ],
+        "style_tags": [
+          "denim",
+          "streetwear",
+          "baggy"
+        ],
+        "notes": "High-waisted, sits above the hip"
+      },
+      {
+        "id": "w_002",
+        "name": "Wide-leg khaki trousers",
+        "category": "bottoms",
+        "colors": [
+          "khaki",
+          "tan"
+        ],
+        "style_tags": [
+          "earth tones",
+          "minimal",
+          "wide-leg"
+        ],
+        "notes": null
+      },
+      {
+        "id": "w_003",
+        "name": "White ribbed tank top",
+        "category": "tops",
+        "colors": [
+          "white"
+        ],
+        "style_tags": [
+          "basics",
+          "minimal",
+          "fitted"
+        ],
+        "notes": "Goes with everything"
+      },
+      {
+        "id": "w_004",
+        "name": "Oversized grey crewneck sweatshirt",
+        "category": "tops",
+        "colors": [
+          "grey",
+          "charcoal"
+        ],
+        "style_tags": [
+          "oversized",
+          "basics",
+          "cozy"
+        ],
+        "notes": "Really oversized — drops below the hip"
+      },
+      {
+        "id": "w_005",
+        "name": "Black cropped zip hoodie",
+        "category": "tops",
+        "colors": [
+          "black"
+        ],
+        "style_tags": [
+          "athletic",
+          "streetwear",
+          "cropped"
+        ],
+        "notes": null
+      },
+      {
+        "id": "w_006",
+        "name": "Vintage black denim jacket",
+        "category": "outerwear",
+        "colors": [
+          "black"
+        ],
+        "style_tags": [
+          "denim",
+          "vintage",
+          "classic"
+        ],
+        "notes": "Slightly cropped"
+      },
+      {
+        "id": "w_007",
+        "name": "Chunky white sneakers",
+        "category": "shoes",
+        "colors": [
+          "white"
+        ],
+        "style_tags": [
+          "sneakers",
+          "chunky",
+          "streetwear"
+        ],
+        "notes": null
+      },
+      {
+        "id": "w_008",
+        "name": "Black combat boots",
+        "category": "shoes",
+        "colors": [
+          "black"
+        ],
+        "style_tags": [
+          "boots",
+          "grunge",
+          "classic"
+        ],
+        "notes": "Lace-up, mid-ankle height"
+      },
+      {
+        "id": "w_009",
+        "name": "Brown leather belt",
+        "category": "accessories",
+        "colors": [
+          "brown"
+        ],
+        "style_tags": [
+          "classic",
+          "earth tones",
+          "accessories"
+        ],
+        "notes": null
+      },
+      {
+        "id": "w_010",
+        "name": "Black crossbody bag",
+        "category": "accessories",
+        "colors": [
+          "black"
+        ],
+        "style_tags": [
+          "minimal",
+          "accessories",
+          "everyday"
+        ],
+        "notes": null
+      }
+    ]
+  },
+  "outfit_suggestion": "Here are two complete outfits using the new Y2K Baby Tee — Butterfly Print and pieces from your wardrobe:\n\n**Outfit 1: Y2K Streetwear**\n*   Y2K Baby Tee — Butterfly Print\n*   Baggy straight-leg jeans, dark wash\n*   Chunky white sneakers\n*   Black crossbody bag\n\n**Outfit 2: Casual Layered Grunge**\n*   Y2K Baby Tee — Butterfly Print\n*   Wide-leg khaki trousers\n*   Black cropped zip hoodie\n*   Black combat boots",
+  "fit_card": "Scored this little butterfly print baby tee on Depop for just $18.0 and I'm instantly transported back to 2003. It's giving major early-2000s mall rat energy, especially paired with baggy dark-wash denim and chunky kicks. Can't wait to grunge it down with combat boots and an oversized zip-up for my next coffee run.",
+  "error": null
+}
+Impossible query: both model tools not called; fit_card is None.
+{
+  "query": "designer ballgown size XXS under $5",
+  "parsed": {
+    "description": "designer ballgown",
+    "size": "XXS",
+    "max_price": 5.0
+  },
+  "search_results": [],
+  "selected_item": null,
+  "wardrobe": {
+    "items": [
+      {
+        "id": "w_001",
+        "name": "Baggy straight-leg jeans, dark wash",
+        "category": "bottoms",
+        "colors": [
+          "dark blue",
+          "indigo"
+        ],
+        "style_tags": [
+          "denim",
+          "streetwear",
+          "baggy"
+        ],
+        "notes": "High-waisted, sits above the hip"
+      },
+      {
+        "id": "w_002",
+        "name": "Wide-leg khaki trousers",
+        "category": "bottoms",
+        "colors": [
+          "khaki",
+          "tan"
+        ],
+        "style_tags": [
+          "earth tones",
+          "minimal",
+          "wide-leg"
+        ],
+        "notes": null
+      },
+      {
+        "id": "w_003",
+        "name": "White ribbed tank top",
+        "category": "tops",
+        "colors": [
+          "white"
+        ],
+        "style_tags": [
+          "basics",
+          "minimal",
+          "fitted"
+        ],
+        "notes": "Goes with everything"
+      },
+      {
+        "id": "w_004",
+        "name": "Oversized grey crewneck sweatshirt",
+        "category": "tops",
+        "colors": [
+          "grey",
+          "charcoal"
+        ],
+        "style_tags": [
+          "oversized",
+          "basics",
+          "cozy"
+        ],
+        "notes": "Really oversized — drops below the hip"
+      },
+      {
+        "id": "w_005",
+        "name": "Black cropped zip hoodie",
+        "category": "tops",
+        "colors": [
+          "black"
+        ],
+        "style_tags": [
+          "athletic",
+          "streetwear",
+          "cropped"
+        ],
+        "notes": null
+      },
+      {
+        "id": "w_006",
+        "name": "Vintage black denim jacket",
+        "category": "outerwear",
+        "colors": [
+          "black"
+        ],
+        "style_tags": [
+          "denim",
+          "vintage",
+          "classic"
+        ],
+        "notes": "Slightly cropped"
+      },
+      {
+        "id": "w_007",
+        "name": "Chunky white sneakers",
+        "category": "shoes",
+        "colors": [
+          "white"
+        ],
+        "style_tags": [
+          "sneakers",
+          "chunky",
+          "streetwear"
+        ],
+        "notes": null
+      },
+      {
+        "id": "w_008",
+        "name": "Black combat boots",
+        "category": "shoes",
+        "colors": [
+          "black"
+        ],
+        "style_tags": [
+          "boots",
+          "grunge",
+          "classic"
+        ],
+        "notes": "Lace-up, mid-ankle height"
+      },
+      {
+        "id": "w_009",
+        "name": "Brown leather belt",
+        "category": "accessories",
+        "colors": [
+          "brown"
+        ],
+        "style_tags": [
+          "classic",
+          "earth tones",
+          "accessories"
+        ],
+        "notes": null
+      },
+      {
+        "id": "w_010",
+        "name": "Black crossbody bag",
+        "category": "accessories",
+        "colors": [
+          "black"
+        ],
+        "style_tags": [
+          "minimal",
+          "accessories",
+          "everyday"
+        ],
+        "notes": null
+      }
+    ]
+  },
+  "outfit_suggestion": null,
+  "fit_card": null,
+  "error": "Nothing matched 'designer ballgown' in size XXS under $5. You could try different words — nothing in the catalogue matches 'designer ballgown'."
+}
