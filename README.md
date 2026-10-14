@@ -384,6 +384,39 @@ Noting it here rather than changing the target.
   `results/milestone5_sessions.txt`. The evidence labels the cached repeat
   separately from the live run, and milestone 5 was committed as `d902aa7`.
 
+**Unit 4, Moment 1: a diagnosis that was a guess**
+
+- *What I asked for:* I gave Claude Code the Milestone 2 instructions. Among
+  other things, it triggered the model-unavailable failure on a new query,
+  `black leather jacket under $70`.
+- *What came back:* The search returned a leather belt. Its first explanation
+  ("keyword scoring counts 'leather' and 'black' equally") was written before
+  it had looked at the data. When it checked the scores, every one of the 10
+  results matched exactly 1 of 3 keywords. The real fit, the $75 "90s Leather
+  Bomber", was over the limit and doesn't say "jacket".
+- *What I changed:* The README now has the explanation that matches the scores,
+  not the plausible-sounding one. That changed the conclusion: the problem
+  isn't how keywords are weighted, it's that a 1-of-3 match counts as a hit,
+  so the empty-search branch never gets the chance to say "raise your limit".
+  It's item 1 under What's Still Broken.
+
+**Unit 4, Moment 2: a criterion that passed the thing it was written to catch**
+
+- *What I asked for:* After the before run, I asked for each criterion to be
+  read plainly against its target.
+- *What came back:* All five were MET. But reading the empty-wardrobe fit cards
+  instead of only the outfit text turned up "every high-waisted pant I own" and
+  "when I throw it over a slip dress". Criterion 5 passed them because it only
+  checked the outfit suggestion.
+- *What I changed:* I added a revision under criterion 5 in `criteria.md`
+  (original kept), re-scored the same five tries (MISSED 3/5), and traced the
+  cause to `create_fit_card` never receiving the wardrobe. That became the one
+  improvement, and it took the revised criterion to 5/5. In the same pass,
+  Claude's first draft of the criterion-1 reasoning claimed both model tools
+  fall back when the model returns an empty reply. I checked `tools.py`: only
+  `suggest_outfit` does. The corrected version is item 4 under What's Still
+  Broken.
+
 Submission repository: [Omar-Adham/ai201-project2-fitfindr-starter-v2026](https://github.com/Omar-Adham/ai201-project2-fitfindr-starter-v2026).
 Keep this same repository for the next unit. See [SUBMISSION.md](SUBMISSION.md)
 for the checklist and URL to paste into the course submission form.
@@ -396,9 +429,6 @@ for the checklist and URL to paste into the course submission form.
 ---
 
 ## Run Log — Before
-
-The sections below are reserved for unit 4 and are intentionally unfinished
-in this unit 3 submission.
 
 <!-- Five criteria, five tries each, in this exact format.
 
@@ -720,6 +750,12 @@ passes. The one cost is speed: every call starts a fresh server process.
 relax-one-filter re-searches. The milestone moves one call site, and those
 re-runs only build the error text.
 
+**After the whole unit:** every search in both 40-call eval runs went through
+MCP. Trace step 2 is labelled `search_listings (via MCP)` in all 50 tries, and
+nothing behaved differently from the direct call. The empty case still arrives
+as `[]`, so the branch fires exactly as before. The only visible cost is time:
+each `call_tool` starts a fresh `mcp_server.py` process.
+
 
 ---
 
@@ -828,6 +864,72 @@ still open "Scored this dreamy…".
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
 
+**No criterion is still missed.** After the improvement all five original
+criteria and revised criterion 5 are MET. But meeting them doesn't mean the
+agent is right. Here is what's still wrong, roughly in order of how much a real
+user would notice, and why I stopped where I did.
+
+1. **Weak matches win the search.** `black leather jacket under $70` returns a
+   leather belt. Every result matches 1 of 3 keywords, and the tie goes to the
+   lowest price. The one real fit (the $75 "90s Leather Bomber") is over the
+   limit and doesn't say "jacket". Because a 1-keyword match counts as a hit,
+   the empty-search branch, which would have said "raise your limit to $75",
+   never fires.
+   *What I'd do:* treat a result that matches fewer than half the keywords as
+   no result, so the existing branch and `_no_results_message` take over. Then
+   add a criterion for it, e.g. "for 5 queries whose only real match is over
+   budget, the agent suggests raising the limit, 5 of 5".
+   *Why I stopped:* none of my five criteria tests search *quality*, so there
+   was no miss to diagnose here. The improvement milestone allows one change,
+   and the diagnosis pointed at `create_fit_card`. This is the one I'd do next.
+
+2. **Fit cards follow a template.** In the after run, 3 of 5 criterion-4 cards
+   open "Scored this dreamy…". Criterion 4's "fresh opening" check compares
+   whole sentences, so it can't see this. I named it as the criterion I'd
+   tighten in Verdicts and Diagnoses.
+   *What I'd do:* tighten criterion 4 to "no two of five cards share their
+   first two words". That is a stricter new target, not a revision. Then
+   change `create_fit_card`'s prompt to stop opening on the purchase ("lead
+   with the vibe or the outfit, not the price").
+   *Why I stopped:* this is the same tool I just changed. Changing its prompt
+   again in the same pass would have made the criterion-5 result impossible to
+   attribute.
+
+3. **Prices print as `$18.0`.** `_describe_item` passes the raw float to the
+   prompt, and the model copies it. *What I'd do:* format the price as `$18` /
+   `$18.50` in `_describe_item`. It's a one-line change, but it's still a
+   second change to the same prompt, which is why I held it back.
+
+4. **`create_fit_card` has no fallback for an empty model reply**, unlike
+   `suggest_outfit`. It never happened in the 40 tries that reached the card step (criteria
+   1, 3, 4 and 5, five tries each, before and after). If it did, it would pass
+   an empty card that criterion 1 would count as a FAIL.
+   *What I'd do:* return a fixed message like `suggest_outfit` does.
+   *Why I stopped:* nothing in the runs failed this way, so it isn't backed by
+   a diagnosis.
+
+5. **The model-down message talks to the developer.** It says "Check
+   GEMINI_API_KEY in your .env file". That's actionable for whoever runs the
+   app, but a shopper can't act on it. *What I'd do:* split it in two, a
+   user-facing line ("styling is down, the listing still stands, try again
+   later") and the key/network detail printed only with `--trace`.
+   *Why I stopped:* it meets the milestone bar (it names what broke and what to
+   do), and choosing the audience is a product decision I haven't made.
+
+6. **Only one call site uses MCP.** `_no_results_message` still calls
+   `search_listings` directly for its relax-one-filter re-searches, and every
+   `call_tool` starts a new server process. That doesn't matter for
+   correctness: direct and MCP results were identical on every query I
+   compared. It does matter for speed, which would be the next thing to fix if
+   this ever served real traffic, by keeping one session open.
+
+**How solid is the evidence?** Each verdict rests on five tries. That is what
+the criteria name, but it's thin for the one change I made: going from 3/5 to
+5/5 could come out that way by luck about 8% of the time. A second "after" run
+would tighten it. I didn't do one because the milestone asks for one re-run in
+the same format, and the complete change in wording ("would look…" in every
+after card, never in a before card) is the stronger evidence anyway.
+
 
 
 <!-- ═════════════════════════════════════════════════════════════════════
@@ -847,17 +949,17 @@ still open "Scored this dreamy…".
 
      SUBMISSION CHECKLIST — unit 4
 
-       [ ] mcp_server.py exists with one tool registered
+       [x] mcp_server.py exists with one tool registered
            (or a written record of exactly where the rewire broke)
-       [ ] Run Log — Before, five criteria, five tries each
-       [ ] Real output pasted underneath, naming file and function
-       [ ] A verdict on every criterion
-       [ ] A diagnosis for every miss, naming a place AND a mechanism
-       [ ] Loop Trace, with the MCP call visible in it
-       [ ] All three failure modes triggered and handled
-       [ ] One improvement, with Run Log — After in the same format
-       [ ] What's Still Broken
-       [ ] At least four new commits
+       [x] Run Log — Before, five criteria, five tries each
+       [x] Real output pasted underneath, naming file and function
+       [x] A verdict on every criterion
+       [x] A diagnosis for every miss, naming a place AND a mechanism
+       [x] Loop Trace, with the MCP call visible in it
+       [x] All three failure modes triggered and handled
+       [x] One improvement, with Run Log — After in the same format
+       [x] What's Still Broken
+       [x] At least four new commits
        [ ] The SAME repository URL as last unit
 
      Do not delete and recreate this repository. Your commit history is what
