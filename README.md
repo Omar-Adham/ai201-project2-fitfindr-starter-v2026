@@ -405,20 +405,127 @@ in this unit 3 submission.
      `python run_eval.py --label before` runs everything and writes the table
      into results/. Paste it here and fill in the verdicts. -->
 
+Produced by `python run_eval.py --label before` (`run_eval.py::main`). Cache was
+off and temperature was 0.9. 40 model calls, 11,352 prompt + 3,715 output tokens.
+The full output is in [`results/run_2026-10-14_1224_before.md`](results/run_2026-10-14_1224_before.md).
+Each criterion has its own scenario in `scenarios.py`, so criteria 1, 3 and 4 are
+three separate sets of five runs of the same query, not one run scored three ways.
+
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before `suggest_outfit` | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Same item at `select`, `suggest_outfit`, `create_fit_card` | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card: price, platform, ≤4 sentences, fresh opening | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Empty wardrobe completes, never claims ownership | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Real output from one try**, pasted as text, naming the file and function
-that produced it:
+How each try was scored:
+1. `session["error"]` is `None` and `fit_card` is non-empty. All five tries
+   completed, with fit cards of 371, 259, 320, 340 and 305 chars.
+2. The trace stops at step 3 (`stop`) with no `suggest_outfit` line, and the
+   message names something to change.
+3. The `select` line, both `new_item=` trace inputs and the run log's
+   `selected_item` line all read `Y2K Baby Tee — Butterfly Print ($18.0, depop)`.
+4. Each card was checked for: the price as a numeral (`18`), the word `depop`,
+   four sentences or fewer, and a first sentence that matches no earlier try's.
+   All five had 3 sentences and five different openings.
+5. `session["error"]` is `None` and `fit_card` is non-empty, and no sentence in
+   the outfit suggestion uses "your", "you own", "you have" or "already" about a
+   garment. I also read each one through by hand.
+
+**Real output from one try of each criterion.** The loop is `agent.py::run_agent`,
+the tools are in `tools.py`, and the run log is written by
+`run_eval.py::write_report`.
+
+Criterion 1, try 1. Fit card from `tools.py::create_fit_card`:
 
 ```
+- stopped early: no
+- selected_item: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+- search_results: 10
+
+Fit card:
+Scored this dreamy little butterfly baby tee for just $18.0 on Depop and I am
+officially living my ultimate 2000s pop star fantasy. The pink and purple
+graphic print gives off major early-2000s mall-rat energy, especially when paired
+with baggy dark wash denim and chunky kicks. It’s giving nostalgic, low-effort
+cool and I'll probably be wearing it on repeat all summer.
+```
+
+Criterion 2, try 1. Trace from `agent.py::run_agent`, message from
+`agent.py::_no_results_message`:
 
 ```
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+      out: {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: [] (empty)
+      →    branch: empty, stopping
+[3] stop
+      out: Nothing matched 'designer ballgown' in size XXS under $5. You could try different words — nothing in the catal…
+      →    no model calls made
+```
+
+Criterion 3, try 1. Trace from `agent.py::run_agent`:
+
+```
+[3] select
+      in:  search_results[0]
+      out: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+[4] suggest_outfit
+      in:  new_item=Y2K Baby Tee — Butterfly Print ($18.0, depop), wardrobe=10 items
+      out: **Outfit 1: Y2K Streetwear** * New Item: Y2K Baby Tee — Butterfly Print * Baggy straight-leg jeans, dark wash …
+[5] create_fit_card
+      in:  outfit=<364 chars from suggest_outfit>, new_item=Y2K Baby Tee — Butterfly Print ($18.0, depop)
+      out: Scored this dreamy little butterfly print baby tee for just $18.0 on depop and I'm obsessed with the early 200…
+```
+
+Criterion 4, try 1. Fit card from `tools.py::create_fit_card`:
+
+```
+Scored this buttery soft butterfly baby tee on Depop for just $18.0, and it's
+giving major early 2000s mall rat energy. I'm obsessed with throwing it on with
+baggy dark denim and a beat-up leather jacket for that effortless off-duty look.
+Such a sweet little nostalgic piece for the rotation.
+```
+
+Criterion 5, try 2. Outfit from `tools.py::suggest_outfit` (empty-wardrobe
+branch) and fit card from `tools.py::create_fit_card`:
+
+```
+Outfit suggestion:
+This vintage Wrangler cropped denim jacket is a timeless streetwear staple that
+balances rugged Americana with a sharp, modern silhouette. Because of its shorter
+hemline, it naturally flatters high-waisted bottoms, making it ideal for pairing
+with wide-leg trousers, pleated midi skirts, or classic cargo pants to create a
+balanced, proportioned look.
+
+It is a versatile piece that easily transitions from casual daytime errands to
+weekend outings. Layer it over a slip dress and chunky boots for an effortless
+contrast of textures, or wear it buttoned up over a simple baby tee with
+distressed denim for a classic Canadian tuxedo.
+
+Fit card:
+Scored this cropped Wrangler denim jacket on Poshmark for just $42.0 and I'm
+honestly obsessed with the light wash. It gives off the ultimate effortless 90s
+streetwear vibe when I throw it over a slip dress and chunky boots. Such a good
+find for transitional weather.
+```
+
+**Things the criteria passed that I'm still unhappy about** (for Milestone 4):
+- **Criterion 4's "fresh opening" check is weak.** All five openings are
+  different sentences, but four of the five follow one template: "Scored /
+  Scooped this … on Depop for just $18.0 …". Comparing exact sentences counts
+  "Scored this little butterfly…" and "Scored this pastel butterfly…" as
+  different.
+- **Criterion 5 only checks the outfit, and the fit card is where ownership
+  creeps in.** In try 4 the card says "goes with literally every high-waisted
+  pant **I own**". The criterion as written passes it, because the outfit
+  suggestion itself never claimed anything.
+- **Every card prints the price as `$18.0` / `$42.0`.** `_describe_item` passes
+  the raw float to the prompt, and the model copies it as written.
 
 ---
 

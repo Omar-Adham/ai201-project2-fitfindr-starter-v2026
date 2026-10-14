@@ -158,6 +158,16 @@ def _no_results_message(parsed: dict) -> str:
     return f"Nothing matched {asked_for}. You could " + ", or ".join(options) + "."
 
 
+def _item_label(item: dict) -> str:
+    """
+    An item as the trace prints it: `title ($price, platform)`.
+
+    The same shape trace._short gives the `select` step, so criterion 3 can
+    compare the item at select, suggest_outfit and create_fit_card by eye.
+    """
+    return f"{item['title']} (${item['price']}, {item['platform']})"
+
+
 def _model_down_message(item: dict, what: str, exc: ModelUnavailable) -> str:
     """
     Say what broke and what still worked when the model can't be reached.
@@ -266,7 +276,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 step = "done"
                 continue
             trace.step("suggest_outfit",
-                       inputs=f"new_item={session['selected_item']['title']!r}, "
+                       inputs=f"new_item={_item_label(session['selected_item'])}, "
                               f"wardrobe={len(wardrobe_items)} items",
                        returned=session["outfit_suggestion"])
             step = "card"
@@ -287,7 +297,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             trace.step("create_fit_card",
                        inputs=f"outfit=<{len(session['outfit_suggestion'])} chars "
                               f"from suggest_outfit>, "
-                              f"new_item={session['selected_item']['title']!r}",
+                              f"new_item={_item_label(session['selected_item'])}",
                        returned=session["fit_card"])
             step = "done"
 
