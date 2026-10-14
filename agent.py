@@ -16,7 +16,7 @@ import re
 import config
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card
-from generate import ModelUnavailable  # noqa: F401 — unit 4 catches this
+from generate import ModelUnavailable
 from mcp_client import call_tool
 
 
@@ -158,6 +158,22 @@ def _no_results_message(parsed: dict) -> str:
     return f"Nothing matched {asked_for}. You could " + ", or ".join(options) + "."
 
 
+def _model_down_message(item: dict, what: str, exc: ModelUnavailable) -> str:
+    """
+    Say what broke and what still worked when the model can't be reached.
+
+    The search never calls the model, so by the time this fires the listing is
+    already found. Throwing it away with the error would hide the half that
+    worked — so the message leads with it.
+    """
+    return (
+        f"Found {item['title']} — ${item['price']:.2f} on {item['platform']} — "
+        f"but couldn't {what}, because the styling model couldn't be reached. "
+        f"{exc} The listing itself is still valid; the search doesn't need the "
+        f"model."
+    )
+
+
 # ── planning loop ─────────────────────────────────────────────────────────────
 
 def run_agent(query: str, wardrobe: dict) -> dict:
@@ -198,40 +214,81 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
         if step == "parse":
             session["parsed"] = parse_query(session["query"])
+            # str() so the trace shows the values — it shortens a bare dict to
+            # just its key names.
+            trace.step("parse_query", inputs=session["query"],
+                       returned=str(session["parsed"]))
             step = "search"
 
         elif step == "search":
             # Over MCP since unit 4: the same tool, reached through
             # mcp_server.py instead of imported. The return value is unchanged.
             parsed = session["parsed"]
-            session["search_results"] = call_tool("search_listings", {
+            arguments = {
                 "description": parsed["description"],
                 "size": parsed["size"],
                 "max_price": parsed["max_price"],
-            })
+            }
+            session["search_results"] = call_tool("search_listings", arguments)
             # ── THE BRANCH ──────────────────────────────────────────────────
             # Read the last result back out of the session and let it pick the
             # next step. Empty means stop; anything else means carry on.
             step = "select" if session["search_results"] else "stop"
+            trace.step("search_listings (via MCP)", inputs=str(arguments),
+                       returned=session["search_results"],
+                       note=("branch: results, continuing" if step == "select"
+                             else "branch: empty, stopping"))
 
         elif step == "stop":
             session["error"] = _no_results_message(session["parsed"])
+            trace.step("stop", returned=session["error"],
+                       note="no model calls made")
             step = "done"
 
         elif step == "select":
             session["selected_item"] = session["search_results"][0]
+            trace.step("select", inputs="search_results[0]",
+                       returned=session["selected_item"])
             step = "outfit"
 
         elif step == "outfit":
-            session["outfit_suggestion"] = suggest_outfit(
-                session["selected_item"], session["wardrobe"]
-            )
+            wardrobe_items = (session["wardrobe"] or {}).get("items") or []
+            try:
+                session["outfit_suggestion"] = suggest_outfit(
+                    session["selected_item"], session["wardrobe"]
+                )
+            except ModelUnavailable as exc:
+                session["error"] = _model_down_message(
+                    session["selected_item"], "suggest an outfit", exc
+                )
+                trace.step("suggest_outfit", returned="ModelUnavailable",
+                           note="model unreachable, stopping")
+                step = "done"
+                continue
+            trace.step("suggest_outfit",
+                       inputs=f"new_item={session['selected_item']['title']!r}, "
+                              f"wardrobe={len(wardrobe_items)} items",
+                       returned=session["outfit_suggestion"])
             step = "card"
 
         elif step == "card":
-            session["fit_card"] = create_fit_card(
-                session["outfit_suggestion"], session["selected_item"]
-            )
+            try:
+                session["fit_card"] = create_fit_card(
+                    session["outfit_suggestion"], session["selected_item"]
+                )
+            except ModelUnavailable as exc:
+                session["error"] = _model_down_message(
+                    session["selected_item"], "write the fit card", exc
+                )
+                trace.step("create_fit_card", returned="ModelUnavailable",
+                           note="model unreachable, stopping")
+                step = "done"
+                continue
+            trace.step("create_fit_card",
+                       inputs=f"outfit=<{len(session['outfit_suggestion'])} chars "
+                              f"from suggest_outfit>, "
+                              f"new_item={session['selected_item']['title']!r}",
+                       returned=session["fit_card"])
             step = "done"
 
         else:  # pragma: no cover — a step name that isn't handled

@@ -466,17 +466,75 @@ that produced it:
      the same length, your branch isn't working — and this is the fastest way
      anyone will ever find that out. -->
 
-**Happy path**
+**Happy path** — `python app.py ask 'vintage graphic tee under $30' --trace`
 
 ```
-
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style … +7 more
+      →    branch: results, continuing
+[3] select
+      in:  search_results[0]
+      out: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+[4] suggest_outfit
+      in:  new_item='Y2K Baby Tee — Butterfly Print', wardrobe=10 items
+      out: Here are two complete outfits using the new Y2K Baby Tee — Butterfly Print and pieces from your wardrobe:  **O…
+[5] create_fit_card
+      in:  outfit=<412 chars from suggest_outfit>, new_item='Y2K Baby Tee — Butterfly Print'
+      out: Scored this little butterfly print baby tee on Depop for just $18.0 and I'm instantly transported back to 2003…
 ```
 
-**Empty search**
+**Empty search** — `python app.py ask 'designer ballgown size XXS under $5' --trace`
 
 ```
-
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+      out: {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: [] (empty)
+      →    branch: empty, stopping
+[3] stop
+      out: Nothing matched 'designer ballgown' in size XXS under $5. You could try different words — nothing in the catal…
+      →    no model calls made
 ```
+
+Three steps instead of five, and no model calls: the branch is what stops it.
+
+**Failure modes, triggered on purpose**
+
+| Failure | How I triggered it | What the agent said | Handler needed? |
+|---|---|---|---|
+| Empty search | `ask 'designer ballgown size XXS under $5'` | "Nothing matched 'designer ballgown' in size XXS under $5. You could try different words — nothing in the catalogue matches 'designer ballgown'." | No. The branch already stops with a message that says what to change. |
+| Empty wardrobe | `ask 'denim jacket under $50' --empty-wardrobe` | General styling advice for the light-wash cropped denim jacket (pair it with high-waisted pieces, a floral midi dress, wide-leg trousers), then a fit card. Not a crash, not `""`. | No. `suggest_outfit` already has an empty-wardrobe prompt. |
+| Model unavailable | Bad `GEMINI_API_KEY` on a query not yet cached (`ask 'black leather jacket under $70'`) | **Before:** `ModelUnavailable: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.` with exit code 1. The listing the search had already found was thrown away, and interactive `ask` mode would have quit. | **Yes.** |
+
+The fix for the model-unavailable case is in `run_agent()`. It catches
+`ModelUnavailable` around `suggest_outfit` and `create_fit_card`, writes a
+message into `session["error"]`, and stops, keeping whatever was already found.
+After the fix:
+
+> Found Leather Belt — Brown, Braided — $12.00 on thredUp — but couldn't suggest an outfit, because the styling model couldn't be reached. The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com. The listing itself is still valid; the search doesn't need the model.
+
+The message names what broke (the styling model), why (the key, network or
+model name, whichever `generate._explain` found), and what still worked (the
+listing). I also forced a failure at the fit-card step, which a bad key can't
+reach because the outfit step fails first. That run stops at step 5, keeps the
+outfit and shows it, and leaves `fit_card` as `None`.
+
+Two things the failure runs turned up for Milestone 4:
+- "black leather jacket under $70" returns a *leather belt* first. Every one of
+  the 10 results matches exactly 1 of the 3 keywords, so the tie goes to the
+  cheapest. The only real fit, "90s Leather Bomber — Black", costs $75 and calls
+  itself a bomber, not a jacket. A one-keyword match counts as a hit, so the
+  empty-search branch never fires, and the user gets a belt instead of "raise
+  your limit to $75".
+- With an empty wardrobe, the fit card still says "my favorite floral midi". The
+  outfit advice correctly avoids claiming the user owns anything, but the
+  caption prompt has no such rule.
 
 **On the MCP move:** <!-- what changed in your code, and whether anything
 behaved differently afterwards. If the rewire didn't work, say exactly where it

@@ -116,6 +116,10 @@ def _ask_one(query, wardrobe, use_trace):
     print()
     if session["error"]:
         print(f"  {session['error']}")
+        # A fit-card failure still has an outfit worth showing.
+        if session["outfit_suggestion"]:
+            print()
+            print(f"  Outfit:   {session['outfit_suggestion']}")
     else:
         item = session["selected_item"] or {}
         print(f"  Found:    {item.get('title')} — ${item.get('price')} on {item.get('platform')}")
