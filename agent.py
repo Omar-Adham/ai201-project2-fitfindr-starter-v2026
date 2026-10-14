@@ -284,7 +284,8 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         elif step == "card":
             try:
                 session["fit_card"] = create_fit_card(
-                    session["outfit_suggestion"], session["selected_item"]
+                    session["outfit_suggestion"], session["selected_item"],
+                    session["wardrobe"],
                 )
             except ModelUnavailable as exc:
                 session["error"] = _model_down_message(

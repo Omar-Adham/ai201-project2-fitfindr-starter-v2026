@@ -136,6 +136,10 @@ scoring and return everything that survived the filters, cheapest first.
 - **Inputs:**
   - `outfit` (`str`) — the string `suggest_outfit` returned
   - `new_item` (`dict`) — the same listing dict that went into `suggest_outfit`
+  - `wardrobe` (`dict | None`, default `None`, *added in unit 4*) — the same
+    wardrobe dict that went into `suggest_outfit`. When its `"items"` is `[]`,
+    the prompt treats `outfit` as general ideas the user doesn't own, so the
+    caption never claims other garments. `None` keeps the original behaviour.
 - **Returns:** A `str` of two to four sentences that mentions the item's `title`,
   its `price`, and its `platform` once each, and that differs between runs
   (`TEMPERATURE` is 0.9 and the eval harness disables the cache).
@@ -726,24 +730,93 @@ re-runs only build the error text.
 
      `python run_eval.py --label after` -->
 
-**What I changed:**
+**What I changed:** One change, to one tool's input and prompt.
+`create_fit_card(outfit, new_item)` became `create_fit_card(outfit, new_item,
+wardrobe=None)`, and `run_agent` now passes it `session["wardrobe"]`. When that
+wardrobe's `"items"` is empty, two things in the prompt change:
+- The system prompt gains: *"The person has NOT told us about any clothes they
+  own. The only garment they have is the find itself. Never write as if they
+  own or are wearing anything else — no 'my jeans', no 'every pant I own', no
+  'I throw it over a slip dress'. Mention pairings only as ideas, e.g. 'would
+  look great over a slip dress'."*
+- The user prompt's heading over the outfit text changes from *"How it's being
+  styled"* to *"General styling ideas (pieces the person does NOT own)"*.
 
-**Which failure it was meant to fix:**
+With a non-empty wardrobe, the prompt is identical to before, so criteria 1, 3
+and 4 send the same prompt in both runs. `test_agent.py` was updated to match
+the new call: `create_fit_card` is now asserted to receive the session's own
+wardrobe object.
+
+I didn't touch the `$18.0` price format or the templated openings. They have
+the same root cause, but fixing them too would mean three changes I couldn't
+tell apart.
+
+**Which failure it was meant to fix:** Revised criterion 5, which missed 3/5.
+The diagnosis was that `create_fit_card` couldn't know the wardrobe was empty,
+so its first-person caption turned the general advice into the user's own
+clothes ("every high-waisted pant I own", "when I throw it over a slip dress").
 
 ### Run Log — After
 
+Produced by `python run_eval.py --label after` (`run_eval.py::main`), with the
+same scenarios, cache off and temperature 0.9. 40 model calls, 11,971 prompt +
+3,833 output tokens. The full output is in
+[`results/run_2026-10-14_1232_after.md`](results/run_2026-10-14_1232_after.md).
+
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before `suggest_outfit` | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Same item at `select`, `suggest_outfit`, `create_fit_card` | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card: price, platform, ≤4 sentences, fresh opening | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Empty wardrobe completes, outfit never claims ownership | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5r. *Revised:* … neither outfit nor fit card claims ownership | 5 of 5 | PASS | PASS | PASS | PASS | PASS | **MET (5/5)** |
 
-**Did it help, and how do I know:**
+**Before and after, side by side:**
 
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
+| Criterion | Target | Before | After |
+|---|---|---|---|
+| 1 | 4 of 5 | MET (5/5) | MET (5/5) |
+| 2 | 5 of 5 | MET (5/5) | MET (5/5) |
+| 3 | 5 of 5 | MET (5/5) | MET (5/5) |
+| 4 | 4 of 5 | MET (5/5) | MET (5/5) |
+| 5 (original) | 5 of 5 | MET (5/5) | MET (5/5) |
+| 5r (revised) | 5 of 5 | **MISSED (3/5)** | **MET (5/5)** |
+
+**Did it help, and how do I know:** Yes. Revised criterion 5 went from 3/5 to
+5/5, and nothing else moved. All five empty-wardrobe cards now describe
+pairings as possibilities, not as clothes the user owns:
+
+```
+try 1: It would look incredible thrown over a slip dress or paired with baggy
+       cargo pants for weekend wanders.
+try 2: ...would look incredible thrown over a slip dress or paired with a crisp
+       white button-down. Can't wait to finally have a proper denim jacket in
+       the rotation.
+try 3: Would look amazing thrown over a pleated midi skirt for weekend farmers
+       markets.
+try 4: ...would look amazing thrown over a silky slip dress or paired with
+       high-rise trousers.
+try 5: ...looks incredible paired with high-waisted parachute pants. Honestly, it
+       would also look great over a sleek slip skirt for weekend coffee runs.
+```
+
+Compare the before run: "goes with literally every high-waisted pant **I own**"
+and "when **I throw it over** a slip dress and chunky boots". Try 2's "finally
+have a proper denim jacket" is the card admitting the user *didn't* own one,
+which is the opposite of the old failure.
+
+How sure am I? 5/5 against a before rate of 3/5 is clear but not conclusive:
+2 failures in 5 could come out 0 in 5 by chance about 8% of the time. The
+pattern supports the fix more than the count does. Every after card uses
+"would look" phrasing, and that phrasing never appeared in the before cards.
+
+It didn't break the full-wardrobe path. On the example wardrobe the cards still
+name the user's own pieces ("my favorite beat-up combat boots", which is a real
+wardrobe item), because the prompt only changes when the wardrobe is empty.
+
+It didn't fix the template, and wasn't meant to: 3 of 5 criterion-4 cards
+still open "Scored this dreamy…".
 
 
 

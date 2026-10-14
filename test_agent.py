@@ -27,11 +27,12 @@ class AgentTests(unittest.TestCase):
             self.assertIsNone(session['fit_card'])
             return 'Test outfit'
 
-        def card(suggestion, item):
+        def card(suggestion, item, wardrobe):
             session = captured['session']
             self.assertEqual(suggestion, session['outfit_suggestion'])
             self.assertEqual(suggestion, 'Test outfit')
             self.assertIs(item, session['selected_item'])
+            self.assertIs(wardrobe, session['wardrobe'])
             return 'Test caption'
 
         with patch.object(agent, 'new_session', side_effect=start), \
@@ -62,7 +63,7 @@ class AgentTests(unittest.TestCase):
              patch.object(agent, 'create_fit_card', return_value='Test caption') as create:
             session = agent.run_agent('denim jacket under $50', wardrobe)
         self.assertIs(suggest.call_args.args[1], wardrobe)
-        create.assert_called_once_with('General advice', session['selected_item'])
+        create.assert_called_once_with('General advice', session['selected_item'], wardrobe)
         self.assertIsNone(session['error'])
 
     def test_shoe_sizes_and_decimal_prices(self):

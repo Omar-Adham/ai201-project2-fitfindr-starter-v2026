@@ -256,7 +256,7 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
 
-def create_fit_card(outfit: str, new_item: dict) -> str:
+def create_fit_card(outfit: str, new_item: dict, wardrobe: dict | None = None) -> str:
     """
     Write a short caption someone would actually post about the find.
 
@@ -265,6 +265,11 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
     Args:
         outfit:   the outfit suggestion string from suggest_outfit().
         new_item: the listing dict for the item.
+        wardrobe: the same wardrobe dict suggest_outfit got. **When its items
+                  list is empty**, `outfit` is general advice rather than
+                  clothes the user owns, and the prompt says so — otherwise a
+                  first-person caption writes "over my slip dress" about a slip
+                  dress nobody said they had. None keeps the old behaviour.
 
     Returns:
         A string of two to four sentences, mentioning the item's title, its
@@ -290,9 +295,26 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
         "Be specific about the vibe. Do not write a product description and do "
         "not use bullet points or headings."
     )
+    styling_heading = "How it's being styled"
+
+    wardrobe_is_empty = wardrobe is not None and not (wardrobe.get("items") or [])
+    if wardrobe_is_empty:
+        # Unit 4 fix: in the before run, 2 of 5 empty-wardrobe cards claimed
+        # garments ("every pant I own"). The tool had no way to know.
+        system += (
+            " The person has NOT told us about any clothes they own. The only "
+            "garment they have is the find itself. Never write as if they own "
+            "or are wearing anything else — no 'my jeans', no 'every pant I "
+            "own', no 'I throw it over a slip dress'. Mention pairings only as "
+            "ideas, e.g. 'would look great over a slip dress'."
+        )
+        styling_heading = (
+            "General styling ideas (pieces the person does NOT own)"
+        )
+
     prompt = (
         f"The find:\n\n{_describe_item(new_item)}\n\n"
-        f"How it's being styled:\n\n{outfit.strip()}\n\n"
+        f"{styling_heading}:\n\n{outfit.strip()}\n\n"
         f"Write the caption."
     )
 
