@@ -17,6 +17,7 @@ import config
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card
 from generate import ModelUnavailable  # noqa: F401 — unit 4 catches this
+from mcp_client import call_tool
 
 
 # ── session state ─────────────────────────────────────────────────────────────
@@ -200,12 +201,14 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             step = "search"
 
         elif step == "search":
+            # Over MCP since unit 4: the same tool, reached through
+            # mcp_server.py instead of imported. The return value is unchanged.
             parsed = session["parsed"]
-            session["search_results"] = search_listings(
-                parsed["description"],
-                size=parsed["size"],
-                max_price=parsed["max_price"],
-            )
+            session["search_results"] = call_tool("search_listings", {
+                "description": parsed["description"],
+                "size": parsed["size"],
+                "max_price": parsed["max_price"],
+            })
             # ── THE BRANCH ──────────────────────────────────────────────────
             # Read the last result back out of the session and let it pick the
             # next step. Empty means stop; anything else means carry on.

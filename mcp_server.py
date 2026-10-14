@@ -59,7 +59,7 @@ works with a direct call, and **a documented failure earns the point in full.**
 
 from mcp.server.fastmcp import FastMCP
 
-from tools import search_listings as _search_listings_impl  # noqa: F401 — you'll use this below
+from tools import search_listings as _search_listings_impl
 
 # log_level="WARNING" keeps the server from printing an INFO line for every
 # request. Without it your terminal fills with "Processing request of type
@@ -67,26 +67,31 @@ from tools import search_listings as _search_listings_impl  # noqa: F401 — you
 mcp = FastMCP("fitfindr", log_level="WARNING")
 
 
-# ── TODO: uncomment and fill this in ──────────────────────────────────────────
-#
-# @mcp.tool()
-# def search_listings(
-#     description: str,
-#     size: str | None = None,
-#     max_price: float | None = None,
-# ) -> list[dict]:
-#     """
-#     <-- YOUR DESCRIPTION GOES HERE.
-#
-#         One or two sentences. What does this tool do, what does it need, and
-#         what does it give back when it finds nothing? Written for a reader
-#         who cannot see the code.
-#     """
-#     return _search_listings_impl(description, size, max_price)
-#
-# ──────────────────────────────────────────────────────────────────────────────
-#
-# Two notes on the block above.
+@mcp.tool()
+def search_listings(
+    description: str,
+    size: str | None = None,
+    max_price: float | None = None,
+) -> list[dict]:
+    """
+    Search a catalogue of second-hand clothing listings by keywords, with an
+    optional size and an optional price ceiling, and return the best matches.
+
+    Inputs: `description` is free-text keywords (e.g. "vintage graphic tee").
+    `size` is a size label such as "M", "S/M", "W30" or "US 8" — letter sizes
+    only match letter sizes, waist only waist, shoe only shoe — or null to skip
+    size filtering. `max_price` is an inclusive ceiling in US dollars (e.g. 30
+    or 29.99), or null to skip price filtering.
+
+    Returns up to 10 listing objects, best keyword match first, ties broken by
+    lower price. Each has: id, title, description, category, style_tags (list
+    of str), size, condition, price (number, USD), colors (list of str), brand
+    (str or null), platform. When nothing matches, returns an empty list —
+    never null and never an error.
+    """
+    return _search_listings_impl(description, size, max_price)
+
+
 #
 # The registered name is the *function* name — so the block above registers
 # "search_listings", which is exactly what call_tool("search_listings", ...)

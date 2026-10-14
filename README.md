@@ -483,6 +483,24 @@ behaved differently afterwards. If the rewire didn't work, say exactly where it
 broke — the error text and the last thing that worked. That earns the point in
 full. -->
 
+`search_listings` is now registered in `mcp_server.py` with the same three typed
+inputs as the Tool Inventory (`description: str`, `size: str | None`,
+`max_price: float | None`) and a description written for a caller who can't see
+the code: units (US dollars, inclusive), the size families, the fields in each
+result, and the empty case (`[]`, never null or an error). `python mcp_client.py`
+lists it with those three inputs.
+
+In `run_agent()`, the `search` step now calls
+`call_tool("search_listings", {...})` instead of importing the function. Nothing
+behaved differently afterwards. I compared direct and MCP results on four
+queries (a normal match, the empty ballgown search, a size-and-price query with
+no keywords, and a `W30` waist size), and all four were equal, including the
+empty `[]`. `python agent.py` runs both paths end to end and `test_agent.py`
+passes. The one cost is speed: every call starts a fresh server process.
+
+`_no_results_message` still calls `search_listings` directly for its
+relax-one-filter re-searches. The milestone moves one call site, and those
+re-runs only build the error text.
 
 
 ---
