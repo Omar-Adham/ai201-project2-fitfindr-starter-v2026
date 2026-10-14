@@ -549,13 +549,62 @@ find for transitional weather.
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | Matching query completes all three tools | 4 of 5 | **MET (5/5)** | All five tries had `session["error"] = None` and a non-empty `fit_card` (259–371 chars). |
+| 2 | Impossible query stops before `suggest_outfit` | 5 of 5 | **MET (5/5)** | All five traces end at step 3 (`stop`) with no `suggest_outfit` line, and the message names something to change ("try different words"). That is the right advice: dropping the size or the price would still find nothing, and `_no_results_message` re-ran both to confirm it. |
+| 3 | Same item at `select`, `suggest_outfit`, `create_fit_card` | 5 of 5 | **MET (5/5)** | In all five tries, all three trace lines and the run log's `selected_item` read `Y2K Baby Tee — Butterfly Print ($18.0, depop)`. |
+| 4 | Fit card: price, platform, ≤4 sentences, fresh opening | 4 of 5 | **MET (5/5)** | Every card had `18`, `depop`, 3 sentences, and a first sentence matching no earlier try's. Checked with a script and then by reading each card. |
+| 5 | Empty wardrobe completes, outfit never claims ownership | 5 of 5 | **MET (5/5)** as written | All five completed, and no outfit suggestion used "your", "you own", "you have" or "already" about a garment. I read each one too. |
+| 5r | *Revised 5:* … and neither the outfit **nor the fit card** claims ownership | 5 of 5 | **MISSED (3/5)** | I re-scored the same five tries, with no re-run. Try 2's card: "when **I throw it over** a slip dress and chunky boots". Try 4's card: "every high-waisted pant **I own**". Tries 1, 3 and 5 pair the jacket with clothes impersonally ("looks so good thrown over a simple slip dress"), and those pass. |
+
+All five criteria met their original targets. Criterion 5 met its target only
+because it was checking the wrong text. Once revised to check what its own
+reason was about, it misses 3/5 against 5 of 5.
 
 **Diagnoses**
+
+**5r — missed 2 of 5. Step: `create_fit_card`. Place: the model's output, caused
+by the tool's inputs.** `create_fit_card(outfit, new_item)` has no wardrobe
+parameter, so it can't tell an empty-wardrobe run from a full one. Its system
+prompt says to write "in the voice of the person who found it", and its user
+prompt passes the outfit text in under "How it's being styled". On the empty
+branch, that outfit text is general advice ("pair it with high-waisted wide-leg
+trousers, slip dresses, chunky boots"). A first-person caption that's told
+those are how the item *is being styled* turns them into the writer's own
+clothes: "when I throw it over a slip dress", "every pant I own".
+`suggest_outfit` did its job, with a separate empty-wardrobe prompt that forbids
+exactly this and five clean outputs. The fix belongs in the tool that lost the
+information, not in the one that had it. The loop and the session are fine:
+`session["wardrobe"]` holds the empty wardrobe the whole time, and
+`run_agent` just never passes it to the card step.
+
+It isn't a one-off. The Milestone 2 empty-wardrobe run, with the cache on and
+separate from this log, produced "Threw this cropped Wrangler jacket over **my
+favorite floral midi**", which is the same mechanism.
+
+**The pattern across everything I'm unhappy about is `create_fit_card`.** The
+ownership claims, the templated openings ("Scored this … on Depop for just
+$18.0" in 4 of 5 criterion-4 cards) and the `$18.0` price format all come from
+that one tool. It is the only tool whose prompt gets neither the wardrobe nor
+any instruction about how to write a price. These are one tool's prompt being
+under-specified, not three separate problems.
+
+**Were my targets too low?** Partly, yes:
+- **Criterion 1 at 4 of 5 is low.** It only checks that the fit card is
+  non-empty. With `ModelUnavailable` caught, the only way left to fail is
+  `create_fit_card` getting an empty string back from the model. Unlike
+  `suggest_outfit`, it has no fallback for that. I justified 4 of 5 by
+  temperature, but temperature changes the *words*, not whether a card comes
+  back. 5 of 5 would have been honest, and adding the same fallback to
+  `create_fit_card` would close the last gap.
+- **Criterion 4 is the one I'd tighten.** "Doesn't open with the same sentence
+  as an earlier try" passes cards that differ by one adjective, so it can't
+  see the template that 4 of 5 cards follow. I'm not revising it, because the
+  check *can* be scored. It's just easy, and making a criterion stricter after
+  meeting it is a new target, not a fix. The tighter version would be "no two
+  of the five cards open with the same first two words". On this run, "Scored
+  this" opens 4 of 5, so it would miss.
+- Criteria 2 and 3 at 5 of 5 are correct as they are. Both test code with no
+  randomness, so anything short of 5 of 5 would be a bug.
 
 
 

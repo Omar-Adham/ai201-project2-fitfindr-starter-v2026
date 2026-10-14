@@ -159,6 +159,23 @@ about, because the run log records `len(search_results)` but not the prices in
 it — scoring that would have meant writing extra checking code, and the
 criterion would have been measuring my test harness as much as my agent.
 
+> **Revised in unit 4:** With an **empty** wardrobe and the query `denim jacket
+> under $50`, the agent still completes all three tools (`session["error"]` is
+> `None` and `fit_card` is non-empty), and **neither the outfit suggestion nor
+> the fit card** presents a garment other than the new item as one the user
+> owns or wears. That means no "your X", no "my X", no "X I own", and no "I
+> pair / throw / wear it with X". 5 of 5 tries.
+>
+> **Why revised:** The original only looked at the outfit suggestion, so it
+> measured the wrong thing. The failure the "why" above names (pairing the
+> jacket with clothes the user never said they owned) reaches the user through
+> **both** pieces of text, and in the before run it showed up only in the fit
+> card. Try 4's card says "goes with literally every high-waisted pant I own",
+> and the original criterion passed it, because the outfit suggestion it
+> checked was clean. A criterion that can't see the failure it was written to
+> catch can't be scored. The target stays at 5 of 5, for the reason already
+> given above.
+
 ---
 
 <!-- ─────────────────────────────────────────────────────────────────────────
